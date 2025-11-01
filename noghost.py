@@ -139,26 +139,18 @@ def run_server():
                 # show a 2-second loading bar on server and stream progress frames to client
                 steps = 20
                 step_sleep = 2.0 / steps
-                # On Windows (git-cmd/console) alive_bar visual may not render well
+                # Use alive-progress locally on the server only; do not stream frames to clients.
                 if sys.platform.startswith('win'):
-                    for i in range(steps):
-                        try:
-                            frame = ('[' + ('=' * (i * 6 // steps)).ljust(6) + ']')
-                            conn.sendall((frame + '\r').encode('utf-8'))
-                        except Exception:
-                            pass
+                    # simple local sleep loop on Windows
+                    for _ in range(steps):
                         time.sleep(step_sleep)
                 else:
                     with alive_bar(steps, title='Connecting') as bar:
-                        for i in range(steps):
-                            try:
-                                frame = ('[' + ('=' * (i * 6 // steps)).ljust(6) + ']')
-                                conn.sendall((frame + '\r').encode('utf-8'))
-                            except Exception:
-                                pass
+                        for _ in range(steps):
                             time.sleep(step_sleep)
                             bar()
-                conn.sendall(b"\nConnection ready.\n")
+                # Inform the client when ready (single messages only)
+                conn.sendall(b"Connection ready.\n")
             except Exception:
                 pass
             with clients_lock:
@@ -177,15 +169,9 @@ def run_client(server_ip):
                     data = s.recv(1024)
                     if not data:
                         break
-                    # print with separators for readability
+                    # print message text plainly (no separators)
                     text = data.decode('utf-8')
-                    # On Windows, avoid extra blank lines and separators to keep git-cmd tidy
-                    if sys.platform.startswith('win'):
-                        print(text)
-                    else:
-                        print('\n' + '-'*40)
-                        print(text)
-                        print('-'*40 + '\n')
+                    print(text)
             except Exception as e:
                 print('reader error', e)
         threading.Thread(target=reader, daemon=True).start()
