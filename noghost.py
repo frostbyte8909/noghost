@@ -139,16 +139,25 @@ def run_server():
                 # show a 2-second loading bar on server and stream progress frames to client
                 steps = 20
                 step_sleep = 2.0 / steps
-                with alive_bar(steps, title='Connecting') as bar:
+                # On Windows (git-cmd/console) alive_bar visual may not render well
+                if sys.platform.startswith('win'):
                     for i in range(steps):
-                        # send a simple frame to client
                         try:
                             frame = ('[' + ('=' * (i * 6 // steps)).ljust(6) + ']')
                             conn.sendall((frame + '\r').encode('utf-8'))
                         except Exception:
                             pass
                         time.sleep(step_sleep)
-                        bar()
+                else:
+                    with alive_bar(steps, title='Connecting') as bar:
+                        for i in range(steps):
+                            try:
+                                frame = ('[' + ('=' * (i * 6 // steps)).ljust(6) + ']')
+                                conn.sendall((frame + '\r').encode('utf-8'))
+                            except Exception:
+                                pass
+                            time.sleep(step_sleep)
+                            bar()
                 conn.sendall(b"\nConnection ready.\n")
             except Exception:
                 pass
@@ -170,9 +179,13 @@ def run_client(server_ip):
                         break
                     # print with separators for readability
                     text = data.decode('utf-8')
-                    print('\n' + '-'*40)
-                    print(text)
-                    print('-'*40 + '\n')
+                    # On Windows, avoid extra blank lines and separators to keep git-cmd tidy
+                    if sys.platform.startswith('win'):
+                        print(text)
+                    else:
+                        print('\n' + '-'*40)
+                        print(text)
+                        print('-'*40 + '\n')
             except Exception as e:
                 print('reader error', e)
         threading.Thread(target=reader, daemon=True).start()
